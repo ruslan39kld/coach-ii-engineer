@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Виртуальное окружение
+venv/
+env/
+ENV/
+
+# Секретные данные
+.env
+
+# База данных
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Логи
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Временные файлы
+*.tmp
+~$*
+.DS_Store
+Thumbs.db
+
+# Windows
+Thumbs.db
+desktop.ini

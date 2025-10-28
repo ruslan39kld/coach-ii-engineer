@@ -1,0 +1,33 @@
+"""
+Быстрая проверка бота
+"""
+import sys
+from pathlib import Path
+
+# Добавляем src в путь
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+# Проверяем импорты
+try:
+    print("✅ Проверка импортов...")
+    
+    from config import TELEGRAM_TOKEN, CLAUDE_API_KEY
+    print(f"✅ Config загружен")
+    print(f"   Telegram токен: {'✅ Есть' if TELEGRAM_TOKEN else '❌ Нет'}")
+    print(f"   Claude API ключ: {'✅ Есть' if CLAUDE_API_KEY else '❌ Нет'}")
+    
+    from database import Database
+    print("✅ Database импортирован")
+    
+    from handlers import setup_handlers
+    print("✅ Handlers импортирован")
+    
+    print("\n🎉 Все модули загружены успешно!")
+    print("\n📝 Следующий шаг: запустите бота командой:")
+    print("   python run.py")
+    
+except ImportError as e:
+    print(f"❌ Ошибка импорта: {e}")
+    print(f"\n💡 Убедитесь, что все файлы находятся в папке src/")
+except Exception as e:
+    print(f"❌ Ошибка: {e}")
