@@ -8,7 +8,7 @@ build:
   command: pip install --no-cache-dir -r requirements.txt
 
 run:
-  command: python bot.py
+  command: python src/bot.py
   persistenceMount: /data
 
 env:
