@@ -20,7 +20,7 @@ class HybridSearch:
     """
 
     def __init__(self,
-                 index_dir: str = "C:/temp/easuz_index",
+                 index_dir: str = "/data/easuz_index",
                  model_name: str = "paraphrase-multilingual-MiniLM-L12-v2") -> None:
         self.index_dir = Path(index_dir)
         self.index_path = self.index_dir / "faiss_index.bin"
