@@ -5,26 +5,8 @@ meta:
     version: 3.11
 
 build:
-  command: pip install --no-cache-dir -r requirements.txt
+  command: pip install --no-cache-dir -r requirements_rag.txt
 
 run:
   command: python src/bot.py
   persistenceMount: /data
-
-env:
-  - name: TELEGRAM_BOT_TOKEN
-    value: ${TELEGRAM_BOT_TOKEN}
-  - name: CLAUDE_API_KEY
-    value: ${CLAUDE_API_KEY}
-  - name: CLAUDE_ENDPOINT
-    value: https://api.vsegpt.ru/v1/chat/completions
-  - name: CLAUDE_MODEL
-    value: anthropic/claude-sonnet-4.5-1m-thinking
-  - name: YADISK_PUBLIC_URL
-    value: https://disk.yandex.ru/d/Iq_KsadHSN9-Gg
-  - name: ADMIN_IDS
-    value: ${ADMIN_IDS}
-  - name: LOG_LEVEL
-    value: INFO
-  - name: PERSISTENCE_PATH
-    value: /data
