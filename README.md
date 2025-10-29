@@ -22,3 +22,5 @@ AI-модель Claude.
 ### 1. Установка зависимостей
 ```bash
 pip install -r requirements.txt
+
+# Test webhook
