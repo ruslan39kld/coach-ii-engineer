@@ -18,7 +18,7 @@ class VectorIndexCreator:
         self.chunks_json = self.data_dir / "chunks_data.json"
         
         # Выходные файлы - сохраняем в C:\temp (без кириллицы)
-        temp_dir = Path("C:/temp/easuz_index")
+        temp_dir = Path("/data/easuz_index")
         temp_dir.mkdir(parents=True, exist_ok=True)
         self.index_file = temp_dir / "faiss_index.bin"
         self.metadata_file = temp_dir / "index_metadata.pkl"
