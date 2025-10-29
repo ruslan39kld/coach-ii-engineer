@@ -24,3 +24,5 @@ numpy==1.26.3
 
 # Progress bar
 tqdm==4.66.1
+
+python-telegram-bot==20.7
