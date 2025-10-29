@@ -28,3 +28,5 @@ tqdm==4.66.1
 python-telegram-bot==20.7
 
 rank-bm25
+
+faiss-cpu
