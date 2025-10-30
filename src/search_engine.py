@@ -10,8 +10,8 @@ class SearchEngine:
     
     def __init__(self):
         # Пути к индексу
-        self.index_path = Path("/data/easuz_index/faiss_index.bin")
-        self.metadata_path = Path("/data/easuz_index/index_metadata.pkl")
+        self.index_path = Path("data/easuz_index/faiss_index.bin")
+        self.metadata_path = Path("data/easuz_index/index_metadata.pkl")
         
         # Загрузка модели
         print("🤖 Загрузка модели...")
