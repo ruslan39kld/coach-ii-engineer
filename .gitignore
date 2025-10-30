@@ -1,3 +1,4 @@
+@"
 # Python
 __pycache__/
 *.py[cod]
@@ -17,7 +18,7 @@ ENV/
 *.db
 *.sqlite
 *.sqlite3
-data/
+data/bot.db
 
 # Логи
 logs/
@@ -34,7 +35,10 @@ logs/
 ~$*
 .DS_Store
 Thumbs.db
-
-# Windows
-Thumbs.db
 desktop.ini
+
+# Model cache
+data/easuz_index/model_cache/
+"@ | Out-File -FilePath .gitignore -Encoding utf8 -Force
+
+cat .gitignore
