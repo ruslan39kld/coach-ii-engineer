@@ -14,7 +14,7 @@ import re
 class HybridSearch:
     """
     Гибридный поиск: FAISS (векторный) + BM25 (ключевые слова)
-    - Индекс и метаданные берутся из /data/easuz_index/
+    - Индекс и метаданные берутся из data/easuz_index/
     - BM25 строится по тем же объектам, что и в векторном индексе (общие IDs)
     Возвращает список словарей: {question, answer, source_file, score}
     """
