@@ -1,16 +1,14 @@
 from telegram import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_main_menu() -> ReplyKeyboardMarkup:
-    """Главное меню"""
+    """Только кнопка Меню"""
     keyboard = [
-        [KeyboardButton(text="🔍 Задать вопрос")],
-        [KeyboardButton(text="📚 Категории"), KeyboardButton(text="❓ Частые вопросы")],
-        [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="ℹ️ О боте")],
+        [KeyboardButton(text="🔄 Меню")]
     ]
     return ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True,
-        input_field_placeholder="Выберите действие..."
+        input_field_placeholder="Задайте ваш вопрос..."
     )
 
 def get_categories_menu() -> ReplyKeyboardMarkup:

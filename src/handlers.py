@@ -67,6 +67,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
     return ConversationHandler.END
 
+async def menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Обработка кнопки Меню"""
+    return await cmd_start(update, context)
+
 async def ask_question(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Начало диалога"""
     await update.message.reply_text(
@@ -506,6 +510,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 def register_handlers(application: Application) -> None:
     """Регистрация всех обработчиков"""
+    application.add_handler(MessageHandler(filters.Regex("^🔄 Меню$"), menu_button))
     
     # ConversationHandler для диалога с вопросами
     conv_handler = ConversationHandler(
