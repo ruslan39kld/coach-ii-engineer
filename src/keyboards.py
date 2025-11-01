@@ -1,3 +1,5 @@
+from telegram import ReplyKeyboardMarkup, KeyboardButton
+
 def get_main_menu() -> ReplyKeyboardMarkup:
     """Только кнопка Меню"""
     keyboard = [
