@@ -9,7 +9,7 @@ from telegram.ext import (
 from telegram.error import BadRequest
 import logging
 from datetime import datetime
-
+from telegram import Update, ReplyKeyboardRemove
 import config
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -18,7 +18,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "👋 Добрый день!\n\n"
         "Я — AI-консультант по системе ЕАСУЗ 44-ФЗ.\n\n"
         "Задайте ваш вопрос, и я предоставлю подробную инструкцию.",
-        reply_markup=None
+        reply_markup=ReplyKeyboardRemove()
     )
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -1,44 +1,28 @@
-@"
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-
-# Виртуальное окружение
-venv/
 env/
-ENV/
-
-# Секретные данные
-.env
-
-# База данных
-*.db
-*.sqlite
-*.sqlite3
-data/bot.db
-
-# Логи
-logs/
-*.log
+venv/
+.venv
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Временные файлы
-*.tmp
-~$*
-.DS_Store
-Thumbs.db
-desktop.ini
+# Данные
+*.db
+*.sqlite
+*.csv
+data/
 
-# Model cache
-data/easuz_index/model_cache/
-"@ | Out-File -FilePath .gitignore -Encoding utf8 -Force
+# Env
+.env
 
-cat .gitignore
+# Logs
+*.log
+
+# Telegram bot config (содержит токен!)
+config.py
