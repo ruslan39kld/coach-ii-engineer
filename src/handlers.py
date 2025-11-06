@@ -10,7 +10,6 @@ from telegram.error import BadRequest
 import logging
 from datetime import datetime
 
-import keyboards as kb
 import config
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -19,12 +18,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "👋 Добрый день!\n\n"
         "Я — AI-консультант по системе ЕАСУЗ 44-ФЗ.\n\n"
         "Задайте ваш вопрос, и я предоставлю подробную инструкцию.",
-        reply_markup=kb.get_main_menu()
+        reply_markup=None
     )
-
-async def menu_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработка кнопки Меню"""
-    await cmd_start(update, context)
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработка вопросов пользователя"""
@@ -41,7 +36,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await processing_msg.delete()
             await update.message.reply_text(
                 "❌ Сервис временно недоступен. Попробуйте через минуту.",
-                reply_markup=kb.get_main_menu()
+                reply_markup=None
             )
             return
         
@@ -69,7 +64,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await update.message.reply_text(
                 answer,
-                reply_markup=kb.get_main_menu(),
+                reply_markup=None,
                 parse_mode="Markdown"
             )
         except BadRequest as e:
@@ -77,7 +72,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 logging.warning(f"[handle_text_message] Markdown error, sending without formatting")
                 await update.message.reply_text(
                     answer,
-                    reply_markup=kb.get_main_menu(),
+                    reply_markup=None,
                     parse_mode=None
                 )
             else:
@@ -91,7 +86,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             pass
         await update.message.reply_text(
             "❌ Произошла ошибка при обработке запроса.\nПопробуйте переформулировать вопрос.",
-            reply_markup=kb.get_main_menu()
+            reply_markup=None
         )
 
 async def reload_kb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -132,8 +127,6 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("reload", reload_kb))
     application.add_handler(CommandHandler("stats_admin", admin_stats))
-    
-    application.add_handler(MessageHandler(filters.Regex("^🔄 Меню$"), menu_button))
-    
+       
     # Обработчик всех текстовых сообщений (вопросов) - должен быть последним!
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

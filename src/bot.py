@@ -1,13 +1,14 @@
 import asyncio
 import logging
 import sys
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import Application, ContextTypes
 
 import config
 from database import Database, KnowledgeBase
 from claude_service import ClaudeService
 from yadisk_loader import YaDiskLoader
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -83,6 +84,12 @@ async def post_init(application: Application) -> None:
     application.bot_data['yadisk_loader'] = yadisk_loader
     application.bot_data['knowledge_base'] = knowledge_base
     logging.info(f"✅ Сохранено в bot_data: {list(application.bot_data.keys())}")
+    
+    # Настройка команд для кнопки Меню
+    await application.bot.set_my_commands([
+        BotCommand("start", "🏠 Главное меню")
+    ])
+    logging.info("✅ Команды бота настроены")
     
     logging.info("="*60)
     logging.info("✅ БОТ ГОТОВ К РАБОТЕ!")
@@ -220,3 +227,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # Force rebuild 2025-10-29
