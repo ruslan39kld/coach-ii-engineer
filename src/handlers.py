@@ -1,30 +1,71 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     ContextTypes,
-    filters
+    filters,
+    CallbackQueryHandler
 )
 from telegram.error import BadRequest
 import logging
 from datetime import datetime
-from telegram import Update, ReplyKeyboardRemove
 import config
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Команда /start"""
+    # Создаем кнопку "Меню" — только один раз, под приветствием
+    keyboard = [[InlineKeyboardButton("Меню", callback_data="menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
         "👋 Добрый день!\n\n"
         "Я — AI-консультант по системе ЕАСУЗ 44-ФЗ.\n\n"
-        "Задайте ваш вопрос, и я предоставлю подробную инструкцию.",
-        reply_markup=ReplyKeyboardRemove()
+        "Помогу разобраться с:\n"
+        "• Процедурами закупок\n"
+        "• Заполнением форм и блоков\n"
+        "• Требованиями к документации\n"
+        "• Работой с модулями системы\n"
+        "• Типовыми ошибками\n\n"
+        "Чем могу Вам помочь?",
+        reply_markup=reply_markup  # Только здесь добавляем кнопку
     )
+
+async def handle_what_can_you_do(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ответ на вопрос 'Что ты можешь?'"""
+    await update.message.reply_text(
+        "💡 Я — AI-ассистент по системе ЕАСУЗ 44-ФЗ.\n\n"
+        "Мои возможности:\n"
+        "✅ Отвечаю на вопросы по работе с системой\n"
+        "✅ Помогаю с заполнением форм и документов\n"
+        "✅ Объясняю процедуры и регламенты\n"
+        "✅ Подсказываю решения типовых проблем\n"
+        "✅ Работаю на базе актуальной документации\n\n"
+        "База знаний включает:\n"
+        "📚 Инструкции и регламенты\n"
+        "📄 Методические материалы\n"
+        "🛠️ Решения технических вопросов\n"
+        "📝 Примеры заполнения форм\n\n"
+        "Чем могу Вам помочь?",
+        reply_markup=None  # Без кнопки
+    )
+
+async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик нажатия на кнопку 'Меню'"""
+    query = update.callback_query
+    await query.answer()  # Отвечаем на callback
+    
+    # Имитируем команду /start
+    await cmd_start(query.message, context)
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработка вопросов пользователя"""
     logging.info(f"[handle_text_message] User: {update.effective_user.id}, Question: {update.message.text}")
     
+    text = update.message.text.strip().lower()
+    if text in ["что ты можешь?", "что ты можешь"]:
+        return  # Не обрабатываем здесь — обработано выше
+
     processing_msg = await update.message.reply_text("⏳ Обрабатываю запрос...")
     
     try:
@@ -60,11 +101,11 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         except:
             pass
         
-        # Отправляем ответ
+        # Отправляем ответ БЕЗ КНОПОК
         try:
             await update.message.reply_text(
                 answer,
-                reply_markup=None,
+                reply_markup=None,  # Никаких кнопок
                 parse_mode="Markdown"
             )
         except BadRequest as e:
@@ -127,6 +168,13 @@ def register_handlers(application: Application) -> None:
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("reload", reload_kb))
     application.add_handler(CommandHandler("stats_admin", admin_stats))
-       
-    # Обработчик всех текстовых сообщений (вопросов) - должен быть последним!
+
+    # Обработчик "Что ты можешь?"
+    what_filter = filters.Regex(r"^(?i)(что ты можешь\??)$")
+    application.add_handler(MessageHandler(what_filter, handle_what_can_you_do))
+
+    # Обработчик нажатия на кнопку "Меню"
+    application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern="menu"))
+
+    # Обработчик всех прочих текстовых сообщений — должен быть последним!
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
