@@ -114,6 +114,12 @@ class DatabaseManager:
                 'course_slug': 'vibe_coding',
                 'total_lessons': 20,
                 'description': 'Методология разработки с использованием ИИ: 20 практических уроков'
+            },
+            {
+                'course_name': 'Веб-разработка с ИИ',
+                'course_slug': 'web_ai',
+                'total_lessons': 20,
+                'description': 'Создание полноценных веб-приложений с интеграцией ИИ: от FastAPI до production'
             }
         ]
         
