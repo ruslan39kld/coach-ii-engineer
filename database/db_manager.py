@@ -114,6 +114,12 @@ class DatabaseManager:
                 'course_slug': 'vibe_coding',
                 'total_lessons': 20,
                 'description': 'Методология разработки с использованием ИИ: 20 практических уроков'
+            },
+            {
+                'course_name': 'Веб-приложения на ИИ',
+                'course_slug': 'web_ai',
+                'total_lessons': 18,
+                'description': 'Создание AI веб-приложений с Google AI Studio: 5 модулей, 18 уроков'
             }
         ]
         

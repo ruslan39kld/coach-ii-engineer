@@ -439,7 +439,8 @@ class Database:
         """Получить название курса"""
         names = {
             1: "Промт-инженерия",
-            2: "Vibe Coding"
+            2: "Vibe Coding",
+            3: "Веб-приложения на ИИ"
         }
         return names.get(course_id, "Неизвестный курс")
     
