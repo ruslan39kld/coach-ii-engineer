@@ -1,16 +1,48 @@
+"""
+Главный файл бота ИИ Инженер
+С интеграцией системы отслеживания прогресса и админ-панели
+Версия: ИСПРАВЛЕННАЯ - правильная активность
+"""
+
 import asyncio
 import logging
 import sys
-from telegram import Update, BotCommand
-from telegram.ext import Application, ContextTypes
+from pathlib import Path
+
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
+from aiogram.types import BotCommand
+from aiogram.fsm.context import FSMContext
 
 import config
-from database import Database, KnowledgeBase
-from claude_service import ClaudeService
-from yadisk_loader import YaDiskLoader
+from services.database import Database
+from services.claude_service import ClaudeService
 
+# Добавляем путь к database (она на уровень выше src)
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Настройка логирования
+# Импорт системы прогресса
+from database.db_manager import db as progress_db
+from handlers.admin_handler import (
+    admin_command,
+    handle_admin_callback,
+    is_admin
+)
+from handlers.progress_handler import (
+    show_user_activity,
+    start_course_tracking,
+    complete_lesson_tracking
+)
+
+# Импорт существующих handlers
+from handlers import menu, learning, testing, trainer, navigator, consultant
+from handlers.learning import user_modes
+from handlers.testing import user_test_state
+
+# ============================================================================
+# НАСТРОЙКА ЛОГИРОВАНИЯ
+# ============================================================================
+
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,211 +52,472 @@ logging.basicConfig(
     ]
 )
 
-async def post_init(application: Application) -> None:
-    """Действия при запуске бота"""
-    
-    print("="*60)
-    print("🤖 POST_INIT ВЫЗВАН!")
-    print("="*60)
-    
-    logging.info("="*60)
-    logging.info("🤖 ЗАПУСК БОТА ЕАСУЗ 44-ФЗ - POST_INIT")
-    logging.info("="*60)
-    
-    try:
-        # Инициализация компонентов
-        logging.info("📦 Инициализация Database...")
-        database = Database(config.DB_PATH)
-        logging.info(f"✅ Database инициализирована: {config.DB_PATH}")
-        
-        logging.info("🤖 Инициализация ClaudeService...")
-        claude_service = ClaudeService()
-        logging.info("✅ ClaudeService инициализирован")
-        
-        logging.info("☁️ Инициализация YaDiskLoader...")
-        yadisk_loader = YaDiskLoader(
-            public_url=config.YADISK_PUBLIC_URL,
-            local_path=config.KB_PATH
-        )
-        logging.info("✅ YaDiskLoader инициализирован")
-        
-        logging.info("📚 Инициализация KnowledgeBase...")
-        knowledge_base = KnowledgeBase(kb_path=config.KB_PATH, database=database)
-        logging.info("✅ KnowledgeBase инициализирована")
-    except Exception as e:
-        logging.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА при инициализации компонентов: {e}", exc_info=True)
-        raise
-    
-    # Загрузка базы знаний с Яндекс.Диска
-    if yadisk_loader.get_file_count() == 0:
-        logging.info("📥 Первый запуск - загрузка файлов с Яндекс.Диска...")
-        if yadisk_loader.download_all():
-            logging.info("✅ Файлы загружены с Яндекс.Диска")
-        else:
-            logging.warning("⚠️ Не удалось загрузить файлы с Яндекс.Диска")
-    else:
-        logging.info(f"✅ Найдено локальных файлов: {yadisk_loader.get_file_count()}")
-    
-    # Индексация документов
-    logging.info("📚 Индексация базы знаний...")
-    knowledge_base.load_all_files()
-    
-    # Статистика
-    try:
-        stats = database.get_stats()
-        logging.info(f"✅ FAQ вопросов: {stats.get('faq', 0)}")
-        logging.info(f"✅ Документов в базе: {stats['documents']}")
-    except Exception as e:
-        logging.warning(f"⚠️ Не удалось получить статистику: {e}")
-    
-    # Сохранение зависимостей в bot_data
-    logging.info("💾 Сохранение компонентов в bot_data...")
-    application.bot_data['database'] = database
-    application.bot_data['claude_service'] = claude_service
-    application.bot_data['yadisk_loader'] = yadisk_loader
-    application.bot_data['knowledge_base'] = knowledge_base
-    logging.info(f"✅ Сохранено в bot_data: {list(application.bot_data.keys())}")
-    
-    # Настройка команд для кнопки Меню
-    await application.bot.set_my_commands([
-        BotCommand("start", "🏠 Главное меню")
-    ])
-    logging.info("✅ Команды бота настроены")
-    
-    logging.info("="*60)
-    logging.info("✅ БОТ ГОТОВ К РАБОТЕ!")
-    logging.info("="*60)
+logger = logging.getLogger(__name__)
 
-async def async_main():
-    """Асинхронная главная функция"""
-    
-    # Проверка обязательных переменных
-    if not config.TELEGRAM_BOT_TOKEN:
-        logging.error("❌ TELEGRAM_BOT_TOKEN не установлен!")
-        raise ValueError("Токен не найден в .env файле")
-    
-    if not config.CLAUDE_API_KEY:
-        logging.error("❌ CLAUDE_API_KEY не установлен!")
-        return
-    
-    # Создание приложения с увеличенным таймаутом и retry логикой
-    from telegram.request import HTTPXRequest
-    
-    # PROXY SUPPORT: Раскомментируйте если нужен прокси для доступа к Telegram
-    # proxy_url = "socks5://127.0.0.1:1080"  # Или ваш прокси сервер
-    proxy_url = None
-    
-    # Увеличенные таймауты для стабильного подключения
-    request = HTTPXRequest(
-        proxy=proxy_url if proxy_url else None,
-        connection_pool_size=8,
-        connect_timeout=60.0,  # Увеличено с 30 до 60 секунд
-        read_timeout=60.0,
-        write_timeout=60.0,
-        pool_timeout=60.0
-    )
-    
-    application = (
-        Application.builder()
-        .token(config.TELEGRAM_BOT_TOKEN)
-        .post_init(post_init)
-        .request(request)
-        .get_updates_request(request)  # Используем тот же request для get_updates
-        .build()
-    )
-    
-    # Регистрация обработчиков
-    from handlers import register_handlers
-    register_handlers(application)
-    
-    logging.info("🔧 Инициализация компонентов бота...")
-    
-    # ВАЖНО: Вручную инициализируем компоненты перед запуском
+# ============================================================================
+# ГЛОБАЛЬНЫЕ КОМПОНЕНТЫ
+# ============================================================================
+
+_components = {}
+
+async def init_components():
+    """Инициализация всех компонентов бота"""
+    global _components
     try:
+        logger.info("🔄 Инициализация компонентов...")
+        
+        # Существующие компоненты
         database = Database(config.DB_PATH)
         claude_service = ClaudeService()
-        yadisk_loader = YaDiskLoader(
-            public_url=config.YADISK_PUBLIC_URL,
-            local_path=config.KB_PATH
-        )
-        knowledge_base = KnowledgeBase(kb_path=config.KB_PATH, database=database)
         
-        # Загрузка базы знаний
-        if yadisk_loader.get_file_count() == 0:
-            logging.info("📥 Загрузка файлов с Яндекс.Диска...")
-            yadisk_loader.download_all()
+        _components.update({
+            'database': database,
+            'claude_service': claude_service,
+            'progress_db': progress_db  # Добавляем БД прогресса
+        })
         
-        logging.info("📚 Индексация базы знаний...")
-        knowledge_base.load_all_files()
-        
-        stats = database.get_stats()
-        logging.info(f"✅ FAQ вопросов: {stats.get('faq', 0)}")
-        logging.info(f"✅ Документов в базе: {stats['documents']}")
-        
-        # Сохранение в bot_data
-        application.bot_data['database'] = database
-        application.bot_data['claude_service'] = claude_service
-        application.bot_data['yadisk_loader'] = yadisk_loader
-        application.bot_data['knowledge_base'] = knowledge_base
-        
-        logging.info(f"✅ Компоненты сохранены в bot_data: {list(application.bot_data.keys())}")
+        logger.info("✅ Все компоненты загружены успешно")
+        return True
         
     except Exception as e:
-        logging.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА при инициализации: {e}", exc_info=True)
-        return
-    
-    # Инициализация и запуск с обработкой ошибок подключения
-    logging.info("🚀 Запуск polling...")
-    
-    max_retries = 3
-    retry_delay = 5
-    
-    for attempt in range(max_retries):
+        logger.error(f"❌ Ошибка инициализации: {e}", exc_info=True)
+        return False
+
+# ============================================================================
+# MIDDLEWARE ДЛЯ РЕГИСТРАЦИИ ПОЛЬЗОВАТЕЛЕЙ
+# ============================================================================
+
+async def register_user_middleware(handler, event, data):
+    """Автоматическая регистрация пользователей в БД прогресса"""
+    if hasattr(event, 'from_user') and event.from_user:
+        user = event.from_user
         try:
-            async with application:
-                await application.initialize()
-                await application.start()
-                await application.updater.start_polling(
-                    allowed_updates=Update.ALL_TYPES, 
-                    drop_pending_updates=True,
-                    timeout=60,  # Таймаут для long polling
-                    error_callback=lambda error: logging.error(f"⚠️ Polling error: {error}")
-                )
-                
-                logging.info("✅ Бот успешно подключен к Telegram!")
-                
-                # Ожидание остановки
-                try:
-                    await asyncio.Event().wait()
-                except (KeyboardInterrupt, SystemExit):
-                    logging.info("👋 Получен сигнал остановки")
-                finally:
-                    await application.updater.stop()
-                    await application.stop()
-                    await application.shutdown()
-                break  # Успешное подключение, выходим из цикла retry
-                
+            progress_db.register_user(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name
+            )
         except Exception as e:
-            if attempt < max_retries - 1:
-                logging.warning(f"⚠️ Попытка {attempt + 1}/{max_retries} не удалась: {e}")
-                logging.info(f"⏳ Повторная попытка через {retry_delay} секунд...")
-                await asyncio.sleep(retry_delay)
-            else:
-                logging.error(f"❌ Не удалось подключиться после {max_retries} попыток")
-                logging.error("💡 РЕШЕНИЕ: Проверьте интернет соединение или используйте VPN/прокси")
-                raise
+            logger.warning(f"Ошибка регистрации пользователя {user.id}: {e}")
+    
+    return await handler(event, data)
 
-def main():
-    """Точка входа"""
+# ============================================================================
+# ОБРАБОТЧИКИ ТЕКСТОВЫХ СООБЩЕНИЙ
+# ============================================================================
+
+async def handle_text_message(message: types.Message):
+    """Обработка текстовых сообщений"""
+    user_id = message.from_user.id
+    mode = user_modes.get(user_id, "consultant")
+    
+    db = _components['database']
+    claude = _components['claude_service']
+    
+    # Логируем активность
     try:
-        asyncio.run(async_main())
-    except KeyboardInterrupt:
-        logging.info("👋 Бот остановлен")
-    except Exception as e:
-        logging.error(f"❌ Критическая ошибка: {e}")
-        import traceback
-        traceback.print_exc()
+        progress_db.update_user_activity(user_id)
+    except:
+        pass
+    
+    # Режим тестирования
+    if mode == "testing":
+        await testing.handle_test_answer(message, db)
+        return
+    
+    # Режим тренажера
+    if mode == "trainer":
+        await trainer.analyze_prompt(message, claude, user_id)
+        return
+    
+    # Режим консультанта
+    if mode == "consultant":
+        await consultant.handle_consultant_question(message, db, claude, user_id)
+        return
+    
+    await message.answer("⚠️ Выберите режим через /start")
 
-if __name__ == '__main__':
-    main()
-    # Force rebuild 2025-10-29
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ ОБУЧЕНИЯ (С ОТСЛЕЖИВАНИЕМ ПРОГРЕССА)
+# ============================================================================
+
+async def wrapped_start_learning(callback: types.CallbackQuery, state: FSMContext):
+    """Начало обучения с записью на курс"""
+    db = _components['database']
+    user_id = callback.from_user.id
+    
+    # Записываем на курс (по умолчанию prompt_engineering)
+    try:
+        await start_course_tracking(callback, 'prompt_engineering')
+    except Exception as e:
+        logger.error(f"Ошибка записи на курс: {e}")
+    
+    # Вызываем оригинальный обработчик
+    await learning.start_learning(callback, db, user_id, state)
+
+async def wrapped_next_section(callback: types.CallbackQuery):
+    """Переход к следующему разделу с отслеживанием прогресса"""
+    db = _components['database']
+    user_id = callback.from_user.id
+    
+    # Получаем текущий номер урока из БД обучения
+    current_lesson = db.get_user_progress(user_id)
+    
+    if current_lesson:
+        # current_lesson может быть tuple или int, извлекаем число
+        if isinstance(current_lesson, tuple):
+            lesson_num = current_lesson[0]  # Берем первый элемент
+        else:
+            lesson_num = current_lesson
+        
+        # Отмечаем предыдущий урок как завершенный
+        try:
+            await complete_lesson_tracking(
+                callback, 
+                'prompt_engineering',  # или получаем из state
+                lesson_num
+            )
+        except Exception as e:
+            # Логируем ошибку, но продолжаем работу
+            logger.error(f"Ошибка отслеживания прогресса: {e}")
+    
+    # Вызываем оригинальный обработчик
+    await learning.next_section(callback, db, user_id)
+
+async def wrapped_show_course_activity(callback: types.CallbackQuery, state: FSMContext):
+    """Показать активность - ИСПРАВЛЕНО: полная версия со всеми уроками"""
+    db = _components['database']
+    # ИСПРАВЛЕНО: используем ПОЛНУЮ активность из learning.py со списком всех уроков
+    await learning.show_course_activity(callback, db, callback.from_user.id, state)
+
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ ОСТАЛЬНЫХ ОБРАБОТЧИКОВ
+# ============================================================================
+
+async def _show_course_program(c, state: FSMContext):
+    db = _components['database']
+    await learning.show_course_program(c, db, state)
+
+async def _restart_course(c):
+    db = _components['database']
+    await learning.restart_course(c, db, c.from_user.id)
+
+async def _go_to_lesson(c):
+    db = _components['database']
+    await learning.go_to_lesson(c, db, c.from_user.id)
+
+async def _show_lesson_list(c, state: FSMContext):
+    await learning.show_lesson_list(c, state)
+
+async def _show_course_program_vibe(c):
+    await learning.show_course_program_vibe(c)
+
+async def _show_course_activity_vibe(c):
+    await learning.show_course_activity_vibe(c)
+
+async def _show_vibe_conditions(c):
+    await learning.show_vibe_conditions(c)
+
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ ТРЕНАЖЕРА
+# ============================================================================
+
+async def _set_trainer(c):
+    await trainer.set_trainer_mode(c, c.from_user.id)
+
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ КОНСУЛЬТАНТА
+# ============================================================================
+
+async def _set_consultant(c):
+    await consultant.set_consultant_mode(c, c.from_user.id)
+
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ ТЕСТИРОВАНИЯ
+# ============================================================================
+
+async def _start_test(c):
+    db = _components['database']
+    await testing.start_test(c, db, c.from_user.id)
+
+async def _next_test_question(c):
+    await testing.next_test_question(c, c.from_user.id)
+
+async def _show_test_result(c):
+    db = _components['database']
+    await testing.show_test_result(c, db, c.from_user.id)
+
+async def _retry_test(c):
+    await testing.retry_test(c, c.from_user.id)
+
+async def _retake_lesson(c):
+    db = _components['database']
+    await testing.retake_lesson(c, db, c.from_user.id)
+
+async def _complete_lesson_after_test(c):
+    db = _components['database']
+    user_id = c.from_user.id
+    
+    # Получаем текущий урок
+    current_lesson = db.get_user_progress(user_id)
+    
+    if current_lesson:
+        # current_lesson может быть tuple или int, извлекаем число
+        if isinstance(current_lesson, tuple):
+            lesson_num = current_lesson[0]
+        else:
+            lesson_num = current_lesson
+        
+        # Отмечаем урок как завершенный в системе прогресса
+        try:
+            await complete_lesson_tracking(c, 'prompt_engineering', lesson_num)
+        except Exception as e:
+            logger.error(f"Ошибка отслеживания прогресса: {e}")
+    
+    # Вызываем оригинальный обработчик
+    await testing.complete_lesson_after_test(c, db, user_id)
+
+# ============================================================================
+# WRAPPER ФУНКЦИИ ДЛЯ НАВИГАТОРА
+# ============================================================================
+
+async def _nav_text_list(c):
+    db = _components['database']
+    await navigator.nav_text_list(c, db)
+
+async def _nav_image_list(c):
+    db = _components['database']
+    await navigator.nav_image_list(c, db)
+
+async def _nav_video_list(c):
+    db = _components['database']
+    await navigator.nav_video_list(c, db)
+
+# ============================================================================
+# WRAPPER ДЛЯ АДМИН-ПАНЕЛИ (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+# ============================================================================
+
+async def wrapped_admin_command(message: types.Message):
+    """Wrapper для команды /admin (aiogram) - ИСПРАВЛЕНО"""
+    # Вызываем обработчик админки напрямую с aiogram message
+    await admin_command(message)
+
+async def wrapped_admin_callback(callback: types.CallbackQuery):
+    """Wrapper для callback админки (aiogram) - ИСПРАВЛЕНО"""
+    # Вызываем напрямую с aiogram callback
+    await handle_admin_callback(callback)
+
+# ============================================================================
+# ГЛАВНАЯ ФУНКЦИЯ
+# ============================================================================
+
+async def main():
+    """Главная функция запуска бота"""
+    
+    # Проверка токена
+    if not config.TELEGRAM_BOT_TOKEN:
+        logger.error("❌ TELEGRAM_BOT_TOKEN не установлен!")
+        sys.exit(1)
+    
+    logger.info("=" * 50)
+    logger.info("🚀 ЗАПУСК БОТА 'ИИ ИНЖЕНЕР'")
+    logger.info("=" * 50)
+    
+    # Инициализация компонентов
+    success = await init_components()
+    if not success:
+        logger.error("❌ Не удалось инициализировать компоненты")
+        sys.exit(1)
+    
+    # Создание бота и диспетчера
+    bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
+    dp = Dispatcher()
+    
+    # Регистрация middleware для автоматической регистрации пользователей
+    dp.message.middleware(register_user_middleware)
+    dp.callback_query.middleware(register_user_middleware)
+    
+    db = _components['database']
+    
+    logger.info("📋 Регистрация обработчиков...")
+    
+    # ========================================================================
+    # ПОДКЛЮЧАЕМ РОУТЕР MENU
+    # ========================================================================
+    
+    dp.include_router(menu.router)
+    
+    # ========================================================================
+    # КОМАНДЫ
+    # ========================================================================
+    
+    dp.message.register(menu.cmd_start, Command("start"))
+    dp.message.register(wrapped_admin_command, Command("admin"))  # ИСПРАВЛЕНО
+    
+    # ========================================================================
+    # АДМИН-ПАНЕЛЬ (ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ)
+    # ========================================================================
+    
+    dp.callback_query.register(
+        wrapped_admin_callback,  # ИСПРАВЛЕНО
+        F.data.startswith("admin_")
+    )
+    
+    # ========================================================================
+    # АКТИВНОСТЬ ПОЛЬЗОВАТЕЛЯ (НОВЫЙ ОБРАБОТЧИК)
+    # ========================================================================
+    
+    dp.callback_query.register(
+        show_user_activity,
+        F.data == "user_activity"
+    )
+    
+    # ========================================================================
+    # РЕЖИМЫ
+    # ========================================================================
+    
+    dp.callback_query.register(wrapped_start_learning, F.data == "mode_learning")
+    dp.callback_query.register(_set_trainer, F.data == "mode_trainer")
+    dp.callback_query.register(navigator.show_navigator, F.data == "mode_navigator")
+    dp.callback_query.register(_set_consultant, F.data == "mode_consultant")
+    
+    # ========================================================================
+    # ОБУЧЕНИЕ
+    # ========================================================================
+    
+    dp.callback_query.register(wrapped_next_section, F.data == "next_section")
+    dp.callback_query.register(_show_lesson_list, F.data == "lesson_list")
+    dp.callback_query.register(_show_course_program, F.data == "course_program")
+    dp.callback_query.register(wrapped_show_course_activity, F.data == "course_activity")
+    dp.callback_query.register(_restart_course, F.data == "restart_course")
+    dp.callback_query.register(_go_to_lesson, F.data.startswith("goto_"))
+    dp.callback_query.register(learning.locked_lesson, F.data.startswith("locked_"))
+    dp.callback_query.register(learning.module_info, F.data.startswith("module_info_"))
+    
+    # Vibe Coding
+    dp.callback_query.register(_show_course_program_vibe, F.data == "course_program_vibe")
+    dp.callback_query.register(_show_course_activity_vibe, F.data == "course_activity_vibe")
+    dp.callback_query.register(_show_vibe_conditions, F.data == "vibe_conditions")
+    
+    # ========================================================================
+    # ТЕСТИРОВАНИЕ
+    # ========================================================================
+    
+    dp.callback_query.register(_start_test, F.data == "start_test")
+    dp.callback_query.register(_next_test_question, F.data == "next_test_question")
+    dp.callback_query.register(_show_test_result, F.data == "show_test_result")
+    dp.callback_query.register(_retry_test, F.data == "retry_test")
+    dp.callback_query.register(_retake_lesson, F.data == "retake_lesson")
+    dp.callback_query.register(_complete_lesson_after_test, F.data == "complete_lesson_after_test")
+    
+    # ========================================================================
+    # НАВИГАТОР - КАТЕГОРИИ
+    # ========================================================================
+    
+    dp.callback_query.register(navigator.nav_text, F.data == "nav_text")
+    dp.callback_query.register(navigator.nav_image, F.data == "nav_image")
+    dp.callback_query.register(navigator.nav_video, F.data == "nav_video")
+    
+    # ========================================================================
+    # НАВИГАТОР - ТЕКСТОВЫЕ ИИ
+    # ========================================================================
+    
+    dp.callback_query.register(_nav_text_list, F.data == "nav_text_list")
+    dp.callback_query.register(navigator.nav_text_compare, F.data == "nav_text_compare")
+    dp.callback_query.register(navigator.nav_text_tactics, F.data == "nav_text_tactics")
+    dp.callback_query.register(navigator.nav_text_lifehacks, F.data == "nav_text_lifehacks")
+    dp.callback_query.register(navigator.nav_text_pitfalls, F.data == "nav_text_pitfalls")
+    dp.callback_query.register(navigator.nav_text_cheatsheet, F.data == "nav_text_cheatsheet")
+    
+    # ========================================================================
+    # НАВИГАТОР - ИЗОБРАЖЕНИЯ
+    # ========================================================================
+    
+    dp.callback_query.register(_nav_image_list, F.data == "nav_image_list")
+    dp.callback_query.register(navigator.nav_image_compare, F.data == "nav_image_compare")
+    dp.callback_query.register(navigator.nav_image_tactics, F.data == "nav_image_tactics")
+    dp.callback_query.register(navigator.nav_image_lifehacks, F.data == "nav_image_lifehacks")
+    dp.callback_query.register(navigator.nav_image_pitfalls, F.data == "nav_image_pitfalls")
+    dp.callback_query.register(navigator.nav_image_cheatsheet, F.data == "nav_image_cheatsheet")
+    
+    # ========================================================================
+    # НАВИГАТОР - ВИДЕО
+    # ========================================================================
+    
+    dp.callback_query.register(_nav_video_list, F.data == "nav_video_list")
+    dp.callback_query.register(navigator.nav_video_compare, F.data == "nav_video_compare")
+    dp.callback_query.register(navigator.nav_video_tactics, F.data == "nav_video_tactics")
+    dp.callback_query.register(navigator.nav_video_lifehacks, F.data == "nav_video_lifehacks")
+    
+    # ========================================================================
+    # ТЕКСТОВЫЕ СООБЩЕНИЯ
+    # ========================================================================
+    
+    dp.message.register(handle_text_message)
+    
+    # ========================================================================
+    # УСТАНОВКА КОМАНД БОТА
+    # ========================================================================
+    
+    # КРИТИЧНО: Сначала удаляем все старые команды
+    await bot.delete_my_commands()
+    logger.info("🗑️ Старые команды удалены")
+    
+    # Устанавливаем команды для всех пользователей (default scope)
+    from aiogram.types import BotCommandScopeDefault
+    user_commands = [
+        BotCommand(command="start", description="🏠 Главное меню")
+    ]
+    
+    await bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
+    logger.info("✅ Команды для пользователей установлены")
+    
+    # Для админов добавляем /admin через chat scope (перекрывает default)
+    from aiogram.types import BotCommandScopeChat
+    admin_commands = [
+        BotCommand(command="start", description="🏠 Главное меню"),
+        BotCommand(command="admin", description="⚙️ Админ-панель")
+    ]
+    
+    # Список ID админов
+    admin_ids = [1501905373, 307782709]
+    
+    for admin_id in admin_ids:
+        try:
+            await bot.set_my_commands(
+                admin_commands,
+                scope=BotCommandScopeChat(chat_id=admin_id)
+            )
+            logger.info(f"✅ Команды админа установлены (ID: {admin_id})")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось установить команды для админа {admin_id}: {e}")
+    
+    # ========================================================================
+    # ЗАПУСК POLLING
+    # ========================================================================
+    
+    logger.info("=" * 50)
+    logger.info("✅ БОТ УСПЕШНО ЗАПУЩЕН!")
+    logger.info("=" * 50)
+    logger.info("📊 Система отслеживания прогресса: АКТИВНА")
+    logger.info("⚙️ Админ-панель: ДОСТУПНА")
+    logger.info("🔐 Админы: 1501905373, 307782709")
+    logger.info("=" * 50)
+    
+    await dp.start_polling(bot)
+
+# ============================================================================
+# ТОЧКА ВХОДА
+# ============================================================================
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("\n" + "=" * 50)
+        logger.info("👋 БОТ ОСТАНОВЛЕН ПОЛЬЗОВАТЕЛЕМ")
+        logger.info("=" * 50)
+    except Exception as e:
+        logger.error(f"❌ КРИТИЧЕСКАЯ ОШИБКА: {e}", exc_info=True)
+        sys.exit(1)
