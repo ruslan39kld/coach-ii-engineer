@@ -16,7 +16,8 @@ venv/
 *.db
 *.sqlite
 *.csv
-data/
+data/*
+!data/web_tests/
 
 # Env
 .env
