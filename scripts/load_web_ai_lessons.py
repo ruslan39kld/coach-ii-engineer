@@ -22,8 +22,8 @@ COURSE_ID = 3
 
 
 def extract_lesson_no(filename):
-    """Извлекает номер урока из имени файла: urok1_... → 1"""
-    match = re.match(r'urok(\d+)_', filename, re.IGNORECASE)
+    """Извлекает номер урока из имени файла: urok1_... или urok_1_... → 1"""
+    match = re.match(r'urok_?(\d+)', filename, re.IGNORECASE)
     return int(match.group(1)) if match else None
 
 
@@ -37,11 +37,15 @@ def extract_module_no(folder_path):
 
 
 def find_all_lessons(root_dir):
-    """Рекурсивно ищет все файлы urok*.txt и возвращает список (lesson_no, module_no, filepath)."""
+    """Рекурсивно ищет все файлы urok* (с .txt или без расширения) и возвращает список (lesson_no, module_no, filepath)."""
     lessons = []
     for dirpath, _, filenames in os.walk(root_dir):
         for filename in filenames:
-            if re.match(r'urok\d+.*\.txt$', filename, re.IGNORECASE):
+            # Match urok* files: with .txt extension OR without any extension
+            if re.match(r'urok\d+', filename, re.IGNORECASE):
+                ext = os.path.splitext(filename)[1].lower()
+                if ext not in ('', '.txt'):
+                    continue
                 lesson_no = extract_lesson_no(filename)
                 module_no = extract_module_no(dirpath)
                 if lesson_no is not None and module_no is not None:
