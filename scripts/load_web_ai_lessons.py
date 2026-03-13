@@ -1,68 +1,57 @@
 """
 Загрузка уроков курса "Веб-приложения на ИИ" (course_id=3) в БД.
 
-Если в папке data/web_ai_lessons/ есть файлы вида lesson_<N>.txt —
-они используются как контент урока. Если файла нет — используется
-встроенный placeholder, который можно заменить позже.
+Скрипт предназначен для запуска на Windows-машине, где расположены файлы уроков.
+Ищет файлы urok*.txt рекурсивно в LESSONS_DIR, извлекает module_no из имени папки.
 
-Структура:
-    Модуль 1  (4 урока, lesson_no 1–4)   — Введение и основы
-    Модуль 2  (5 уроков, lesson_no 5–9)  — Монологовые приложения
-    Модуль 3  (4 урока, lesson_no 10–13) — Диалоговые приложения
-    Модуль 4  (3 урока, lesson_no 14–16) — От прототипа к продакшену
-    Модуль 5  (2 урока, lesson_no 17–18) — Продвинутые техники
+Структура папок:
+    МОДУЛЬ 1 ВВЕДЕНИЕ И ОСНОВЫ\УРОК 1 ...\urok1_*.txt
+    МОДУЛЬ 2 ...\УРОК 5 ...\urok5_*.txt
+    ...
 """
 
 import os
 import sys
 import sqlite3
+import re
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-import config
-
-DB_PATH = Path(config.DB_PATH)
-LESSONS_DIR = Path(__file__).parent.parent / 'data' / 'web_ai_lessons'
+DB_PATH = "data/bot.db"
+LESSONS_DIR = r"C:\Users\BeltiugovRV\Desktop\ПРОЕКТЫ\1. AI Инженер\БАЗА\Веб-приложения"
 COURSE_ID = 3
 
 
-# ---------------------------------------------------------------------------
-# Маппинг: (module_no, lesson_no) → title
-# ---------------------------------------------------------------------------
-LESSONS_MAPPING = {
-    # Модуль 1: Введение и основы
-    (1, 1):  "Введение в Google AI Studio — революция в разработке",
-    (1, 2):  "От идеи до приложения — процесс генерации и редактирования",
-    (1, 3):  "Анатомия AI веб-приложения — структура файлов и geminiService",
-    (1, 4):  "Локальная разработка и публикация приложений",
+def extract_lesson_no(filename):
+    """Извлекает номер урока из имени файла: urok1_... → 1"""
+    match = re.match(r'urok(\d+)_', filename, re.IGNORECASE)
+    return int(match.group(1)) if match else None
 
-    # Модуль 2: Монологовые приложения
-    (2, 5):  "Первое AI-приложение — анализатор текста",
-    (2, 6):  "Приложение с файлами — AI-секретарь совещаний",
-    (2, 7):  "Форматированный вывод — генератор контента",
-    (2, 8):  "Работа с данными — JSON хранилище",
-    (2, 9):  "Стилизация и адаптивный дизайн",
 
-    # Модуль 3: Диалоговые приложения
-    (3, 10): "Чат-интерфейс с историей и streaming",
-    (3, 11): "AI-консультант по продаже абонементов",
-    (3, 12): "Продавщик с ветвлением — система сборки пиццы",
-    (3, 13): "Многоагентная система — AI-ветеринар",
+def extract_module_no(folder_path):
+    """Извлекает номер модуля из пути папки: МОДУЛЬ 1 ... → 1"""
+    for part in Path(folder_path).parts:
+        match = re.search(r'МОДУЛЬ\s+(\d+)', part, re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+    return None
 
-    # Модуль 4: От прототипа к продакшену
-    (4, 14): "Оптимизация и производительность",
-    (4, 15): "Обработка ошибок и edge cases",
-    (4, 16): "Тестирование и отладка",
 
-    # Модуль 5: Продвинутые техники
-    (5, 17): "Интеграции с внешними API",
-    (5, 18): "Создание полноценного продукта — итоговый проект",
-}
+def find_all_lessons(root_dir):
+    """Рекурсивно ищет все файлы urok*.txt и возвращает список (lesson_no, module_no, filepath)."""
+    lessons = []
+    for dirpath, _, filenames in os.walk(root_dir):
+        for filename in filenames:
+            if re.match(r'urok\d+.*\.txt$', filename, re.IGNORECASE):
+                lesson_no = extract_lesson_no(filename)
+                module_no = extract_module_no(dirpath)
+                if lesson_no is not None and module_no is not None:
+                    lessons.append((lesson_no, module_no, os.path.join(dirpath, filename)))
+    lessons.sort(key=lambda x: x[0])
+    return lessons
 
 
 def placeholder_content(module_no: int, lesson_no: int, title: str) -> str:
-    """Генерирует placeholder-контент урока в формате, пригодном для разбивки на разделы."""
+    """Генерирует placeholder-контент урока."""
     return f"""РАЗДЕЛ 1: Введение
 Урок {lesson_no}. {title}
 
@@ -98,12 +87,35 @@ def placeholder_content(module_no: int, lesson_no: int, title: str) -> str:
 """
 
 
-def get_lesson_content(module_no: int, lesson_no: int, title: str) -> str:
-    """Возвращает контент урока: из файла или placeholder."""
-    file_path = LESSONS_DIR / f'lesson_{lesson_no}.txt'
-    if file_path.exists():
-        return file_path.read_text(encoding='utf-8')
-    return placeholder_content(module_no, lesson_no, title)
+# Маппинг lesson_no → title (используется как fallback если файл не найден)
+TITLE_MAPPING = {
+    1:  "Введение в Google AI Studio — революция в разработке",
+    2:  "От идеи до приложения — процесс генерации и редактирования",
+    3:  "Анатомия AI веб-приложения — структура файлов и geminiService",
+    4:  "Локальная разработка и публикация приложений",
+    5:  "Первое AI-приложение — анализатор текста",
+    6:  "Приложение с файлами — AI-секретарь совещаний",
+    7:  "Форматированный вывод — генератор контента",
+    8:  "Работа с данными — JSON хранилище",
+    9:  "Стилизация и адаптивный дизайн",
+    10: "Чат-интерфейс с историей и streaming",
+    11: "AI-консультант по продаже абонементов",
+    12: "Продавщик с ветвлением — система сборки пиццы",
+    13: "Многоагентная система — AI-ветеринар",
+    14: "Оптимизация и производительность",
+    15: "Обработка ошибок и edge cases",
+    16: "Тестирование и отладка",
+    17: "Интеграции с внешними API",
+    18: "Создание полноценного продукта — итоговый проект",
+}
+
+MODULE_FOR_LESSON = {
+    1: 1, 2: 1, 3: 1, 4: 1,
+    5: 2, 6: 2, 7: 2, 8: 2, 9: 2,
+    10: 3, 11: 3, 12: 3, 13: 3,
+    14: 4, 15: 4, 16: 4,
+    17: 5, 18: 5,
+}
 
 
 def ensure_tables(cursor: sqlite3.Cursor):
@@ -125,34 +137,60 @@ def ensure_tables(cursor: sqlite3.Cursor):
         pass
 
 
-def main():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+def load_lessons():
+    if not os.path.exists(LESSONS_DIR):
+        print(f"❌ Папка не найдена: {LESSONS_DIR}")
+        return
+
+    lessons = find_all_lessons(LESSONS_DIR)
+    if not lessons:
+        print(f"⚠️  Файлы urok*.txt не найдены в {LESSONS_DIR}")
+        return
+
+    db_path = Path(DB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     ensure_tables(cursor)
 
-    # Удаляем старые уроки курса 3
     cursor.execute("DELETE FROM lesson_catalog WHERE course_id = ?", (COURSE_ID,))
-    print(f"🗑️  Старые уроки курса {COURSE_ID} удалены")
+    print(f"🗑️  Старые уроки курса {COURSE_ID} удалены\n")
+    print(f"📚 Найдено файлов: {len(lessons)}\n")
 
     loaded = 0
-    for (module_no, lesson_no), title in sorted(LESSONS_MAPPING.items()):
-        content = get_lesson_content(module_no, lesson_no, title)
-        file_path = str(LESSONS_DIR / f'lesson_{lesson_no}.txt')
+    try:
+        for lesson_no, module_no, filepath in lessons:
+            filename = os.path.basename(filepath)
+            title = TITLE_MAPPING.get(lesson_no, filename.replace('.txt', '').replace('_', ' ').strip())
+
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            cursor.execute("""
+                INSERT INTO lesson_catalog (module_no, lesson_no, title, file_path, content, course_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (module_no, lesson_no, title, filepath, content, COURSE_ID))
+
+            print(f"  ✅ M{module_no} L{lesson_no:>2}: {filename}")
+            loaded += 1
+
+        conn.commit()
+        print(f"\n🎉 Загружено уроков Веб-приложения на ИИ: {loaded} (course_id={COURSE_ID})")
 
         cursor.execute("""
-            INSERT INTO lesson_catalog (module_no, lesson_no, title, file_path, content, course_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (module_no, lesson_no, title, file_path, content, COURSE_ID))
+            SELECT module_no, COUNT(*) FROM lesson_catalog
+            WHERE course_id = ? GROUP BY module_no ORDER BY module_no
+        """, (COURSE_ID,))
+        print("\n📊 Уроков по модулям:")
+        for row in cursor.fetchall():
+            print(f"   Модуль {row[0]}: {row[1]} уроков")
 
-        source = "файл" if (LESSONS_DIR / f'lesson_{lesson_no}.txt').exists() else "placeholder"
-        print(f"  ✅ M{module_no} L{lesson_no:>2}: {title} [{source}]")
-        loaded += 1
-
-    conn.commit()
-    conn.close()
-    print(f"\n🎉 Загружено уроков: {loaded} (course_id={COURSE_ID})")
+    except Exception as e:
+        print(f"\n❌ Ошибка: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
-    main()
+    load_lessons()
