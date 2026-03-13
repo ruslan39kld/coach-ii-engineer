@@ -19,11 +19,22 @@ async def start_learning_with_course(callback: CallbackQuery, db, user_id: int, 
     # Загружаем прогресс
     m_no, l_no, section = db.get_user_progress(user_id)
     logging.info(f"📖 Прогресс: модуль {m_no}, урок {l_no}, раздел {section}")
-    
+
     lesson = db.get_lesson(m_no, l_no)
-    
+
+    # Если сохранённый прогресс не соответствует урокам этого курса —
+    # начинаем с первого урока курса (актуально для курса 3, где модули 6-10)
     if not lesson:
-        logging.error(f"❌ Урок {m_no}.{l_no} не найден!")
+        first = db.get_first_lesson_for_course(course_id)
+        if first:
+            m_no, l_no = first
+            section = 0
+            db.update_user_progress(user_id, m_no, l_no, section)
+            lesson = db.get_lesson(m_no, l_no)
+            logging.info(f"📖 Начинаем с первого урока курса {course_id}: M{m_no} L{l_no}")
+
+    if not lesson:
+        logging.error(f"❌ Урок {m_no}.{l_no} не найден в курсе {course_id}!")
         await callback.answer("Урок не найден")
         return
     

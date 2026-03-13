@@ -20,7 +20,9 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-DB_PATH = Path(__file__).parent.parent / 'data' / 'bot.db'
+import config
+
+DB_PATH = Path(config.DB_PATH)
 LESSONS_DIR = Path(__file__).parent.parent / 'data' / 'web_ai_lessons'
 COURSE_ID = 3
 
