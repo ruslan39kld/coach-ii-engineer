@@ -168,22 +168,25 @@ async def show_course_program(callback: CallbackQuery, db, state: FSMContext = N
     
     if course_id == 2:
         lessons = [l for l in all_lessons if l.get('course_id') == 2]
+    elif course_id == 3:
+        lessons = [l for l in all_lessons if l.get('course_id') == 3]
     else:
         lessons = [l for l in all_lessons if l.get('course_id') in [None, 1]]
-    
+
     if not lessons:
         await callback.message.edit_text("⚠️ Уроки не найдены в БД", parse_mode="Markdown")
         await callback.answer()
         return
-    
+
     modules = {}
     for lesson in lessons:
         m_no = lesson['module_no']
         if m_no not in modules:
             modules[m_no] = []
         modules[m_no].append(lesson)
-    
-    course_name = "ПРОМТ-ИНЖЕНЕРИЯ" if course_id == 1 else "VIBE CODING"
+
+    course_names = {1: "ПРОМТ-ИНЖЕНЕРИЯ", 2: "VIBE CODING", 3: "ВЕБ-ПРИЛОЖЕНИЯ НА ИИ"}
+    course_name = course_names.get(course_id, f"КУРС {course_id}")
     text = f"*📖 ПРОГРАММА КУРСА {course_name}*\n\n"
     
     for m_no in sorted(modules.keys()):
@@ -311,9 +314,11 @@ async def show_course_activity(callback: CallbackQuery, db, user_id: int, state:
     
     if course_id == 2:
         lessons = [l for l in all_lessons if l.get('course_id') == 2]
+    elif course_id == 3:
+        lessons = [l for l in all_lessons if l.get('course_id') == 3]
     else:
         lessons = [l for l in all_lessons if l.get('course_id') in [None, 1]]
-    
+
     completed = db.get_completed_lessons(user_id)
     completed_set = set(completed)
     
@@ -460,3 +465,102 @@ async def module_info(callback: CallbackQuery):
 async def locked_lesson(callback: CallbackQuery):
     """Недоступный урок"""
     await callback.answer("⚠️ Урок еще не доступен. Завершите текущий урок.", show_alert=True)
+
+async def show_web_locked_menu(callback: CallbackQuery, state: FSMContext):
+    """Меню для заблокированного курса Веб-приложения на ИИ"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📖 Программа курса", callback_data="course_program_web")],
+        [InlineKeyboardButton(text="📊 Активность", callback_data="course_activity_web")],
+        [InlineKeyboardButton(text="⚠️ Условия доступа", callback_data="web_conditions")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="show_course_selection")]
+    ])
+    await callback.message.edit_text(
+        "🌐 <b>Веб-приложения на ИИ (18 уроков)</b>\n\n"
+        "⚠️ <b>Курс заблокирован</b>\n\n"
+        "Для доступа к курсу необходимо завершить все уроки курса \"Vibe Coding\".\n\n"
+        "Вы можете ознакомиться с программой курса и условиями доступа.",
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+async def show_course_program_web(callback: CallbackQuery):
+    """Программа курса Веб-приложения на ИИ"""
+    text = (
+        "*📖 ПРОГРАММА КУРСА ВЕБ-ПРИЛОЖЕНИЯ НА ИИ*\n\n"
+
+        "*МОДУЛЬ 1: Основы веб-разработки с ИИ (4 урока)*\n"
+        "• Урок 1: Введение в веб-разработку с ИИ\n"
+        "• Урок 2: Инструменты и стек технологий\n"
+        "• Урок 3: Первое веб-приложение с ИИ\n"
+        "• Урок 4: Проектирование интерфейсов\n\n"
+
+        "*МОДУЛЬ 2: Фронтенд и интеграция ИИ (5 уроков)*\n"
+        "• Урок 5: HTML/CSS с помощью ИИ\n"
+        "• Урок 6: JavaScript и ИИ-ассистенты\n"
+        "• Урок 7: Подключение LLM к фронтенду\n"
+        "• Урок 8: Чат-интерфейс для ИИ\n"
+        "• Урок 9: Работа с API нейросетей\n\n"
+
+        "*МОДУЛЬ 3: Бэкенд и ИИ-сервисы (5 уроков)*\n"
+        "• Урок 10: Серверная часть на Python/FastAPI\n"
+        "• Урок 11: RAG для веб-приложений\n"
+        "• Урок 12: Аутентификация и безопасность\n"
+        "• Урок 13: База данных и хранилище\n"
+        "• Урок 14: Деплой веб-приложения\n\n"
+
+        "*МОДУЛЬ 4: Продвинутые техники (4 урока)*\n"
+        "• Урок 15: Оптимизация и производительность\n"
+        "• Урок 16: Мультимодальный ИИ в вебе\n"
+        "• Урок 17: Монетизация и продвижение\n"
+        "• Урок 18: Финальный проект\n\n"
+
+        "*Всего:* 4 модуля, 18 уроков, 54 теста"
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="select_course_3")]
+    ])
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()
+
+async def show_course_activity_web(callback: CallbackQuery):
+    """Активность курса Веб-приложения на ИИ (заблокирован)"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="select_course_3")]
+    ])
+    await callback.message.edit_text(
+        "*📊 АКТИВНОСТЬ*\n\n"
+        "⚠️ Курс заблокирован\n\n"
+        "Прогресс: 0/18 (0%)\n\n"
+        "Завершите курс \"Vibe Coding\" для доступа.",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+async def show_web_conditions(callback: CallbackQuery):
+    """Условия доступа к курсу Веб-приложения на ИИ"""
+    text = (
+        "*⚠️ УСЛОВИЯ ДОСТУПА К КУРСУ ВЕБ-ПРИЛОЖЕНИЯ НА ИИ*\n\n"
+
+        "*✅ ОБЯЗАТЕЛЬНО:*\n"
+        "☑ Пройден курс \"Vibe Coding\"\n"
+        "☑ Компьютер (Windows/Mac/Linux)\n"
+        "☑ Интернет\n"
+        "☑ Базовое понимание работы с ИИ\n\n"
+
+        "*✅ ЖЕЛАТЕЛЬНО:*\n"
+        "☑ Опыт работы с Python\n"
+        "☑ Знакомство с HTML/CSS\n"
+        "☑ Аккаунт на GitHub\n\n"
+
+        "*❌ НЕ НУЖНО:*\n"
+        "☒ Глубокие знания программирования\n"
+        "☒ Опыт в DevOps\n"
+        "☒ Дорогой хостинг\n\n"
+    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="select_course_3")]
+    ])
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+    await callback.answer()

@@ -85,20 +85,26 @@ async def show_course_selection(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
     db = Database(config.DB_PATH)
     
-    # Проверяем прогресс по course_id=1 (Промт-инженерия)
+    # Проверяем прогресс по course_id=1 и course_id=2
     progress = db.get_user_course_progress(user_id, course_id=1)
     prompt_completed = (progress['completed_lessons'] >= progress['total_lessons'])
-    
+    progress_vibe = db.get_user_course_progress(user_id, course_id=2)
+    vibe_completed = (progress_vibe['completed_lessons'] >= progress_vibe['total_lessons'])
+
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📚 Промт-инженерия (23 урока)", callback_data="select_course_1")],
         [InlineKeyboardButton(
             text="💻 Vibe Coding (21 урок)" + (" ✅" if prompt_completed else " 🔒"),
             callback_data="select_course_2"
         )],
+        [InlineKeyboardButton(
+            text="🌐 Веб-приложения на ИИ (18 уроков)" + (" ✅" if vibe_completed else " 🔒"),
+            callback_data="select_course_3"
+        )],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
-    
-    await state.update_data(prompt_completed=prompt_completed)
+
+    await state.update_data(prompt_completed=prompt_completed, vibe_completed=vibe_completed)
     
     # ИЗМЕНЕНО: используем edit_text вместо answer
     await callback.message.edit_text(
@@ -128,6 +134,13 @@ async def select_course(callback: CallbackQuery, state: FSMContext):
     if course_id == 2 and not prompt_completed:
         from handlers.learning import show_vibe_locked_menu
         await show_vibe_locked_menu(callback, state)
+        return
+
+    # Если Веб-приложения на ИИ И не завершен Vibe Coding → показать меню блокировки
+    vibe_completed = data.get("vibe_completed", False)
+    if course_id == 3 and not vibe_completed:
+        from handlers.learning import show_web_locked_menu
+        await show_web_locked_menu(callback, state)
         return
     
     # Иначе запускаем обучение
