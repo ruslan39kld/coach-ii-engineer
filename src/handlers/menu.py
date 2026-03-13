@@ -87,9 +87,12 @@ async def show_course_selection(callback: CallbackQuery, state: FSMContext):
     
     # Проверяем прогресс по course_id=1 и course_id=2
     progress = db.get_user_course_progress(user_id, course_id=1)
-    prompt_completed = (progress['completed_lessons'] >= progress['total_lessons'])
+    prompt_completed = (progress['completed_lessons'] >= progress['total_lessons'] > 0)
     progress_vibe = db.get_user_course_progress(user_id, course_id=2)
-    vibe_completed = (progress_vibe['completed_lessons'] >= progress_vibe['total_lessons'])
+    vibe_completed = (progress_vibe['completed_lessons'] >= progress_vibe['total_lessons'] > 0)
+    vibe_module1_completed = db.get_vibe_module1_completed(user_id)
+    # Веб-приложения доступны если пройдена Промт-инженерия И Модуль 1 Vibe Coding
+    web_unlocked = prompt_completed and vibe_module1_completed
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📚 Промт-инженерия (23 урока)", callback_data="select_course_1")],
@@ -98,13 +101,18 @@ async def show_course_selection(callback: CallbackQuery, state: FSMContext):
             callback_data="select_course_2"
         )],
         [InlineKeyboardButton(
-            text="🌐 Веб-приложения на ИИ (18 уроков)" + (" ✅" if vibe_completed else " 🔒"),
+            text="🌐 Веб-приложения на ИИ (18 уроков)" + (" ✅" if web_unlocked else " 🔒"),
             callback_data="select_course_3"
         )],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="main_menu")]
     ])
 
-    await state.update_data(prompt_completed=prompt_completed, vibe_completed=vibe_completed)
+    await state.update_data(
+        prompt_completed=prompt_completed,
+        vibe_completed=vibe_completed,
+        vibe_module1_completed=vibe_module1_completed,
+        web_unlocked=web_unlocked,
+    )
     
     # ИЗМЕНЕНО: используем edit_text вместо answer
     await callback.message.edit_text(
@@ -136,9 +144,10 @@ async def select_course(callback: CallbackQuery, state: FSMContext):
         await show_vibe_locked_menu(callback, state)
         return
 
-    # Если Веб-приложения на ИИ И не завершен Vibe Coding → показать меню блокировки
-    vibe_completed = data.get("vibe_completed", False)
-    if course_id == 3 and not vibe_completed:
+    # Если Веб-приложения на ИИ И не выполнены оба условия доступа → показать меню блокировки
+    # Условия: пройдена Промт-инженерия (23 урока) И пройден Модуль 1 Vibe Coding (4 урока)
+    web_unlocked = data.get("web_unlocked", False)
+    if course_id == 3 and not web_unlocked:
         from handlers.learning import show_web_locked_menu
         await show_web_locked_menu(callback, state)
         return

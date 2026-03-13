@@ -488,7 +488,9 @@ async def show_web_locked_menu(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "🌐 <b>Веб-приложения на ИИ (18 уроков)</b>\n\n"
         "⚠️ <b>Курс заблокирован</b>\n\n"
-        "Для доступа к курсу необходимо завершить все уроки курса \"Vibe Coding\".\n\n"
+        "Для доступа к курсу необходимо выполнить оба условия:\n"
+        "1️⃣ Пройти все 23 урока курса \"Промт-инженерия\"\n"
+        "2️⃣ Пройти Модуль 1 курса \"Vibe Coding\" (уроки 1–4)\n\n"
         "Вы можете ознакомиться с программой курса и условиями доступа.",
         reply_markup=keyboard,
         parse_mode="HTML"
@@ -545,7 +547,7 @@ async def show_course_activity_web(callback: CallbackQuery):
         "*📊 АКТИВНОСТЬ*\n\n"
         "⚠️ Курс заблокирован\n\n"
         "Прогресс: 0/18 (0%)\n\n"
-        "Завершите курс \"Vibe Coding\" для доступа.",
+        "Для доступа пройдите курс \"Промт-инженерия\" и Модуль 1 \"Vibe Coding\".",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
@@ -557,20 +559,20 @@ async def show_web_conditions(callback: CallbackQuery):
         "*⚠️ УСЛОВИЯ ДОСТУПА К КУРСУ ВЕБ-ПРИЛОЖЕНИЯ НА ИИ*\n\n"
 
         "*✅ ОБЯЗАТЕЛЬНО:*\n"
-        "☑ Пройден курс \"Vibe Coding\"\n"
+        "☑ Пройден курс \"Промт-инженерия\" (23 урока)\n"
+        "☑ Пройден Модуль 1 \"Vibe Coding\" (4 урока)\n"
         "☑ Компьютер (Windows/Mac/Linux)\n"
-        "☑ Интернет\n"
-        "☑ Базовое понимание работы с ИИ\n\n"
+        "☑ Интернет\n\n"
 
         "*✅ ЖЕЛАТЕЛЬНО:*\n"
-        "☑ Опыт работы с Python\n"
-        "☑ Знакомство с HTML/CSS\n"
-        "☑ Аккаунт на GitHub\n\n"
+        "☑ Telegram аккаунт\n"
+        "☑ Аккаунт Сбер ID\n"
+        "☑ Готовность экспериментировать\n\n"
 
         "*❌ НЕ НУЖНО:*\n"
-        "☒ Глубокие знания программирования\n"
-        "☒ Опыт в DevOps\n"
-        "☒ Дорогой хостинг\n\n"
+        "☒ Знание программирования\n"
+        "☒ Дорогое оборудование\n"
+        "☒ Большой бюджет\n\n"
     )
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Назад", callback_data="select_course_3")]
