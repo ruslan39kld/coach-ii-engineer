@@ -29,7 +29,7 @@ async def cmd_start(message: Message, state: FSMContext):
         "Освойте технологии искусственного интеллекта для повышения эффективности работы.\n"
         "Экономьте до 70% времени на рутинных процессах.\n\n"
         "<b>Выберите режим работы:</b>\n\n"
-        "🎓 <b>Обучение</b> — 2 курса: Промт-инженерия и Vibe Coding\n"
+        "🎓 <b>Обучение</b> — 3 курса: Промт-инженерия, Vibe Coding и Веб-приложения на ИИ\n"
         "🔧 <b>Тренажер</b> — проверка промптов по ПЛК-ФОТ\n"
         "🧭 <b>Навигатор</b> — справочник по нейросетям\n"
         "💬 <b>Консультант</b> — ответы на вопросы по курсу",
@@ -64,7 +64,7 @@ async def main_menu_callback(callback: CallbackQuery, state: FSMContext):
         "Освойте технологии искусственного интеллекта для повышения эффективности работы.\n"
         "Экономьте до 70% времени на рутинных процессах.\n\n"
         "<b>Выберите режим работы:</b>\n\n"
-        "🎓 <b>Обучение</b> — 2 курса: Промт-инженерия и Vibe Coding\n"
+        "🎓 <b>Обучение</b> — 3 курса: Промт-инженерия, Vibe Coding и Веб-приложения на ИИ\n"
         "🔧 <b>Тренажер</b> — проверка промптов по ПЛК-ФОТ\n"
         "🧭 <b>Навигатор</b> — справочник по нейросетям\n"
         "💬 <b>Консультант</b> — ответы на вопросы по курсу",
@@ -97,7 +97,7 @@ async def show_course_selection(callback: CallbackQuery, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📚 Промт-инженерия (23 урока)", callback_data="select_course_1")],
         [InlineKeyboardButton(
-            text="💻 Vibe Coding (21 урок)" + (" ✅" if prompt_completed else " 🔒"),
+            text="💻 Vibe Coding (20 уроков)" + (" ✅" if prompt_completed else " 🔒"),
             callback_data="select_course_2"
         )],
         [InlineKeyboardButton(
@@ -169,7 +169,7 @@ async def show_about(callback: CallbackQuery):
         "━━━━━━━━━━━━━━━━\n\n"
         
         "📚 <b>РЕЖИМ «ОБУЧЕНИЕ»</b>\n"
-        "• 2 курса: Промт-инженерия (23 урока) и Vibe Coding (21 урок)\n"
+        "• 3 курса: Промт-инженерия (23 урока), Vibe Coding (20 уроков) и Веб-приложения на ИИ (18 уроков)\n"
         "• 4 модуля с практическими кейсами\n"
         "• 132 теста по урокам + 60 итоговых тестов\n"
         "• Система сохранения прогресса\n"
