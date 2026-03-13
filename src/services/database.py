@@ -461,14 +461,14 @@ class Database:
         """Получить прогресс пользователя по конкретному курсу"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         # Общее количество уроков в курсе
         cursor.execute(
             "SELECT COUNT(*) FROM lesson_catalog WHERE course_id = ?",
             (course_id,)
         )
         total_lessons = cursor.fetchone()[0]
-        
+
         # Количество пройденных уроков
         cursor.execute("""
             SELECT COUNT(DISTINCT lc.lesson_no)
@@ -477,14 +477,29 @@ class Database:
             WHERE lc.user_id = ? AND cat.course_id = ?
         """, (user_id, course_id))
         completed_lessons = cursor.fetchone()[0]
-        
+
         # Процент прогресса
         progress_percentage = int((completed_lessons / total_lessons * 100)) if total_lessons > 0 else 0
-        
+
         conn.close()
-        
+
         return {
             'total_lessons': total_lessons,
             'completed_lessons': completed_lessons,
             'progress_percentage': progress_percentage
         }
+
+    def get_vibe_module1_completed(self, user_id: int) -> bool:
+        """Проверяет, пройдены ли все 4 урока Модуля 1 курса Vibe Coding"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        # Модуль 1 Vibe Coding: course_id=2, module_no=1, lesson_no=1..4
+        cursor.execute("""
+            SELECT COUNT(DISTINCT lc.lesson_no)
+            FROM lesson_completions lc
+            JOIN lesson_catalog cat ON lc.module_no = cat.module_no AND lc.lesson_no = cat.lesson_no
+            WHERE lc.user_id = ? AND cat.course_id = 2 AND cat.module_no = 1
+        """, (user_id,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count >= 4
