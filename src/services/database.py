@@ -195,6 +195,20 @@ class Database:
         conn.close()
         return row
 
+    def get_first_lesson_for_course(self, course_id: int):
+        """Возвращает (module_no, lesson_no) первого урока курса или None."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT module_no, lesson_no FROM lesson_catalog
+            WHERE course_id = ?
+            ORDER BY module_no, lesson_no
+            LIMIT 1
+        """, (course_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row  # (module_no, lesson_no) или None
+
     # =========================================================================
     # МЕТОДЫ ДЛЯ ОТСЛЕЖИВАНИЯ ЗАВЕРШЕННЫХ УРОКОВ
     # =========================================================================
