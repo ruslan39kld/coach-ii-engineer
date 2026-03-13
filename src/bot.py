@@ -219,6 +219,15 @@ async def _show_course_activity_vibe(c):
 async def _show_vibe_conditions(c):
     await learning.show_vibe_conditions(c)
 
+async def _show_course_program_web(c):
+    await learning.show_course_program_web(c)
+
+async def _show_course_activity_web(c):
+    await learning.show_course_activity_web(c)
+
+async def _show_web_conditions(c):
+    await learning.show_web_conditions(c)
+
 # ============================================================================
 # WRAPPER ФУНКЦИИ ДЛЯ ТРЕНАЖЕРА
 # ============================================================================
@@ -399,6 +408,11 @@ async def main():
     dp.callback_query.register(_show_course_program_vibe, F.data == "course_program_vibe")
     dp.callback_query.register(_show_course_activity_vibe, F.data == "course_activity_vibe")
     dp.callback_query.register(_show_vibe_conditions, F.data == "vibe_conditions")
+
+    # Веб-приложения на ИИ
+    dp.callback_query.register(_show_course_program_web, F.data == "course_program_web")
+    dp.callback_query.register(_show_course_activity_web, F.data == "course_activity_web")
+    dp.callback_query.register(_show_web_conditions, F.data == "web_conditions")
     
     # ========================================================================
     # ТЕСТИРОВАНИЕ
