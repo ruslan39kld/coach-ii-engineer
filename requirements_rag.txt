@@ -1,3 +1,9 @@
 python-dotenv==1.0.0
 aiogram==3.22.0
 gigachat
+pandas==2.1.4
+openpyxl==3.1.2
+aiohttp==3.9.1
+aiofiles==23.2.1
+requests==2.31.0
+yadisk==3.1.0
