@@ -8,6 +8,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -138,6 +139,16 @@ async def init_components():
     try:
         logger.info("🔄 Инициализация компонентов...")
         
+        # Seed persistence: copy git bot.db to persistent mount on first deploy
+        seed_db = os.path.join(config.PROJECT_ROOT, 'data', 'bot.db')
+        persistent_db = config.DB_PATH
+        if seed_db != persistent_db and os.path.exists(seed_db):
+            if not os.path.exists(persistent_db):
+                shutil.copy2(seed_db, persistent_db)
+                logger.info("✅ Copied seed bot.db to persistent storage")
+            else:
+                logger.info("✅ Using existing persistent bot.db")
+
         # Существующие компоненты
         database = Database(config.DB_PATH)
 
