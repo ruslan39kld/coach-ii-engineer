@@ -34,6 +34,7 @@ ADMIN_IDS = [
 PERSISTENCE_PATH = os.getenv('PERSISTENCE_PATH', 'data').strip() or 'data'
 KB_PATH = os.path.join(PERSISTENCE_PATH, 'knowledge_base')
 DB_PATH = os.path.join(PERSISTENCE_PATH, 'bot.db')
+LESSONS_DIR = os.getenv('LESSONS_DIR', os.path.join(PERSISTENCE_PATH, 'lessons'))
 LOG_PATH = 'logs/bot.log'
 
 # Логирование

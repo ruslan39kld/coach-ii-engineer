@@ -6,6 +6,8 @@
 
 import asyncio
 import logging
+import os
+import re
 import sys
 from pathlib import Path
 
@@ -60,6 +62,76 @@ logger = logging.getLogger(__name__)
 
 _components = {}
 
+
+def _load_lessons_from_files(database):
+    """
+    Автоматически загружает уроки из файлов на диске в lesson_catalog.
+
+    Сканирует config.LESSONS_DIR рекурсивно в поисках файлов urok*.txt.
+    Номер урока извлекается из имени файла (urokN_*.txt → N).
+    Номер модуля извлекается из имени папки (МОДУЛЬ N / Модуль N → N).
+    course_id определяется по имени папки: 'vibe' → 2, 'web'/'веб' → 3, иначе → 1.
+    """
+    lessons_dir = config.LESSONS_DIR
+
+    if not os.path.isdir(lessons_dir):
+        logger.warning(
+            f"⚠️ Папка с уроками не найдена: {lessons_dir}. "
+            "Поместите файлы уроков в эту папку для автозагрузки."
+        )
+        return
+
+    loaded = 0
+    for dirpath, _, filenames in os.walk(lessons_dir):
+        for filename in sorted(filenames):
+            if not re.match(r'urok\d+.*\.txt$', filename, re.IGNORECASE):
+                continue
+
+            m_lesson = re.match(r'urok(\d+)', filename, re.IGNORECASE)
+            if not m_lesson:
+                continue
+            lesson_no = int(m_lesson.group(1))
+
+            # Извлекаем module_no из пути папки
+            module_no = 1
+            for part in Path(dirpath).parts:
+                m_mod = re.search(r'(?:МОДУЛЬ|Модуль|module)\s*(\d+)', part, re.IGNORECASE)
+                if m_mod:
+                    module_no = int(m_mod.group(1))
+                    break
+
+            # Определяем course_id по имени папки
+            course_id = 1
+            full_path_lower = dirpath.lower()
+            if 'vibe' in full_path_lower:
+                course_id = 2
+            elif 'web' in full_path_lower or 'веб' in full_path_lower:
+                course_id = 3
+
+            filepath = os.path.join(dirpath, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                # Пробуем извлечь заголовок из содержимого
+                title_match = re.search(r'УРОК\s+\d+[:.]\s*(.+)', content)
+                if title_match:
+                    title = title_match.group(1).strip()
+                else:
+                    title = filename.replace('.txt', '').replace('_', ' ').strip()
+
+                database.add_lesson_to_catalog(module_no, lesson_no, title, filepath, content, course_id)
+                loaded += 1
+                logger.info(f"  ✅ курс={course_id} M{module_no} L{lesson_no}: {title[:60]}")
+            except Exception as e:
+                logger.error(f"❌ Ошибка загрузки файла {filepath}: {e}")
+
+    if loaded > 0:
+        logger.info(f"✅ Автозагрузка уроков завершена: {loaded} уроков из {lessons_dir}")
+    else:
+        logger.warning(f"⚠️ Файлы уроков (urok*.txt) не найдены в {lessons_dir}")
+
+
 async def init_components():
     """Инициализация всех компонентов бота"""
     global _components
@@ -68,6 +140,12 @@ async def init_components():
         
         # Существующие компоненты
         database = Database(config.DB_PATH)
+
+        # Автозагрузка уроков, если каталог пуст
+        if not database.get_all_lessons():
+            logger.info("📚 Каталог уроков пуст — запускаем автозагрузку из файлов...")
+            _load_lessons_from_files(database)
+
         claude_service = ClaudeService()
         
         _components.update({
