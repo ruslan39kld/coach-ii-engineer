@@ -4,7 +4,7 @@ meta:
     name: pip
     version: "3.11"
 build:
-  requirementsPath: requirements.txt
+  requirementsPath: requirements_rag.txt 
   useCache: false
 run:
   scriptName: src/bot.py
